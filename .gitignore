@@ -1,0 +1,8 @@
+# IDE-Dateien (keime iml-Datei, da SBT-Projekt)
+.idea
+
+# Build-Dateien
+target
+
+# OS-Dateien
+.DS_Store
