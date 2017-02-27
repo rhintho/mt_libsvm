@@ -1,4 +1,4 @@
-name := "mt_libsvm"
+name := "MT_LIBSVM"
 
 version := "0.1a"
 
