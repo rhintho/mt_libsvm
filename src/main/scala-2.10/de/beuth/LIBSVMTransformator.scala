@@ -20,11 +20,15 @@ object LIBSVMTransformator {
   log.setLevel(Level.DEBUG)
 
   def startTransformation(dataPath: String, maxVeloPath: String, targetPath: String, jamValue: Double,
-                          column: Array[String]): Unit = {
+                          column: Array[String], startTimeInterval: String, endTimeInterval: String): Unit = {
     log.debug("Start der Transformation wird eingeleitet ...")
 
     // Allgemeine Werte setzen
     // aktuell noch keine Werte zu setzen
+
+    // Parameter preparieren
+    val startTimestamp = Timestamp.valueOf(startTimeInterval.replace("T", " "))
+    val endTimestamp = Timestamp.valueOf(endTimeInterval.replace("T", " "))
 
     // Spark initialisieren
     val conf = new SparkConf().setAppName("MT_LIBSVMTransformation")
@@ -36,13 +40,13 @@ object LIBSVMTransformator {
     val maxValues = createMaxVelocityDataFrame(sQLContext, maxVeloPath)
 
     // LIBSVM erstellen
-    combineVectors(df, maxValues, column, jamValue, targetPath)
+    combineVectorAttributes(df, maxValues, column, jamValue, targetPath, startTimestamp, endTimestamp)
 
     log.debug("Bearbeitung der LIBSVM abgeschlossen.")
   }
 
-  private def combineVectors(dataFrame: DataFrame, maxValues: DataFrame, col: Array[String], jamValue: Double,
-                             targetPath: String): Unit = {
+  private def combineVectorAttributes(dataFrame: DataFrame, maxValues: DataFrame, col: Array[String], jamValue: Double,
+                                      targetPath: String, startTimestamp: Timestamp, endTimestamp: Timestamp): Unit = {
 
     val joinedData = dataFrame
       .join(maxValues, dataFrame("sensor_id").equalTo(maxValues("sensor_id_mv")), "left_outer")
@@ -53,6 +57,10 @@ object LIBSVMTransformator {
 
     var i: Int = 0
     val rdd = joinedData.rdd
+      .filter(r => {
+        val t = Timestamp.valueOf(r.getString(1))
+        (t.equals(startTimestamp) || t.after(startTimestamp)) && (t.equals(endTimestamp) || t.before(endTimestamp))
+      })
       .map(r => (
         if (r.getString(3).toDouble < (r.getString(10).toDouble * jamValue) && r.getString(3).toDouble != 0) 0 else 1,
         if (col.contains("sensor_id")) {

@@ -1,6 +1,7 @@
 package de.beuth.inspector
 
 import java.nio.file.{Files, Paths}
+import java.sql.Timestamp
 
 /**
   * Objekt zur Überprüfung der einzelnen Argumente bei Programmaufruf. Sollten diese Parameter bereits nicht
@@ -18,12 +19,23 @@ object ArgumentInspector {
                              "temperature, latitude, longitude and completeness "
 
   def inspectArguments(dataPath: String, maxVeloPath: String, targetPath: String, jamValue: Double,
-                       column: Array[String]): Boolean = {
+                       column: Array[String], startTimeInterval: String, endTimeInterval: String): Boolean = {
     inspectURL(dataPath) &&
     inspectURL(maxVeloPath) &&
 //    inspectURL(targetPath) &&
     inspectJamValue(jamValue) &&
-    inspectColumns(column)
+    inspectColumns(column) &&
+    inspectTimeInterval(startTimeInterval) &&
+    inspectTimeInterval(endTimeInterval)
+  }
+
+  private def inspectTimeInterval(value: String): Boolean = {
+    val minTimestamp = Timestamp.valueOf("2009-01-01 00:00:00")
+    val maxTimestamp = Timestamp.valueOf("2014-12-31 23:59:59")
+    val formattedValue = value.replace("T", " ")
+    val timestamp = Timestamp.valueOf(formattedValue)
+    (timestamp.equals(minTimestamp) || timestamp.after(minTimestamp)) &&
+    (timestamp.equals(maxTimestamp) || timestamp.before(maxTimestamp))
   }
 
   private def inspectJamValue(jamValue: Double): Boolean = {
@@ -78,10 +90,6 @@ object ArgumentInspector {
 
   private def inspectTargetPath(targetPath: String): Boolean = {
     !targetPath.contains(".") && Files.exists(Paths.get(targetPath))
-  }
-
-  private def inspectTimeInterval(timeInterval: Int): Boolean = {
-    timeInterval > 0 && timeInterval < 60
   }
 
   private def inspectSensorType(sensorType: String): Boolean = {
