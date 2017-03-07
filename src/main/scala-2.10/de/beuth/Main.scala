@@ -10,15 +10,16 @@ object Main extends App {
     try {
       // Parameter auslesen
       val dataPath = args.apply(0)
-      val targetPath = args.apply(1)
-      val jamValue = args.apply(2).toInt
-      val column = readArgument(args.apply(3))
+      val maxVeloPath = args.apply(1)
+      val targetPath = args.apply(2)
+      val jamValue = args.apply(3).toDouble
+      val column = readArgument(args.apply(4))
 
-      if (ArgumentInspector.inspectArguments(dataPath, targetPath, jamValue, column)) {
+      if (ArgumentInspector.inspectArguments(dataPath, maxVeloPath, targetPath, jamValue, column)) {
         // Argumente sind alle gültig, Transformation kann gestartet werden
         System.out.println("Everything is ok with the arguments!")
         // Starten der Transformation ins Vektorformat
-        LIBSVMTransformator.startTransformation(dataPath, targetPath, jamValue, column)
+        LIBSVMTransformator.startTransformation(dataPath, maxVeloPath, targetPath, jamValue, column)
 
       } else {
         // Argumente ungültig. Fehler ausgeben und weitere Bearbeitung beenden.

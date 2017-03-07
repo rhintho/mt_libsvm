@@ -19,7 +19,8 @@ object LIBSVMTransformator {
   val log: Logger = LogManager.getLogger("LIBSVM Transformator")
   log.setLevel(Level.DEBUG)
 
-  def startTransformation(dataPath: String, targetPath: String, jamValue: Int, column: Array[String]): Unit = {
+  def startTransformation(dataPath: String, maxVeloPath: String, targetPath: String, jamValue: Double,
+                          column: Array[String]): Unit = {
     log.debug("Start der Transformation wird eingeleitet ...")
 
     // Allgemeine Werte setzen
@@ -32,40 +33,101 @@ object LIBSVMTransformator {
 
     // Dataframe erzeugen
     val df = createDataFrame(sQLContext, dataPath)
+    val maxValues = createMaxVelocityDataFrame(sQLContext, maxVeloPath)
 
     // LIBSVM erstellen
-    combineVectors(df, column, jamValue, targetPath)
+    combineVectors(df, maxValues, column, jamValue, targetPath)
 
     log.debug("Bearbeitung der LIBSVM abgeschlossen.")
   }
 
-  private def combineVectors(dataFrame: DataFrame, col: Array[String], jamValue: Int, targetPath: String): Unit = {
-//    var i: Int = 1
-    val rdd = dataFrame.rdd
+  private def combineVectors(dataFrame: DataFrame, maxValues: DataFrame, col: Array[String], jamValue: Double,
+                             targetPath: String): Unit = {
+
+    val joinedData = dataFrame
+      .join(maxValues, dataFrame("sensor_id").equalTo(maxValues("sensor_id_mv")), "left_outer")
+    joinedData.show(200)
+
+    val testDataFrame = joinedData.select("sensor_id", "max_velocity").distinct
+    testDataFrame.show(200)
+
+    var i: Int = 0
+    val rdd = joinedData.rdd
       .map(r => (
-        if (r.getString(3).toDouble < jamValue && r.getString(2).toDouble != 0) 0 else 1,
-        if (col.contains("sensor_id")) 1 + ":" + r.getString(0) else 1 + ":" + 0,
-        if (col.contains("timestamp")) 2 + ":" + Timestamp.valueOf(r.getString(1)).getTime  else 2 + ":" + 0,
-        if (col.contains("year")) 3 + ":" + getYear(r.getString(1)) else 3 + ":" + 0,
-        if (col.contains("month")) 4 + ":" + getMonth(r.getString(1)) else 4 + ":" + 0,
-        if (col.contains("day")) 5 + ":" + getDay(r.getString(1)) else 5 + ":" + 0,
-        if (col.contains("hour")) 6 + ":" + getHour(r.getString(1)) else 6 + ":" + 0,
-        if (col.contains("minute")) 7 + ":" + getMinute(r.getString(1)) else 7 + ":" + 0,
-        if (col.contains("weekday")) 8 + ":" + getWeekday(r.getString(1)) else 8 + ":" + 0,
-        if (col.contains("period")) 9 + ":" + getPeriod(r.getString(1)) else 9 + ":" + 0,
-        if (col.contains("registration")) 10 + ":" + r.getString(2).toDouble.toInt else 10 + ":" + 0,
-        if (col.contains("velocity")) 11 + ":" + r.getString(3) else 11 + ":" + 0,
-        if (col.contains("rainfall")) 12 + ":" + r.getString(4) else 12 + ":" + 0,
-        if (col.contains("temperature")) 13 + ":" + r.getString(5) else 13 + ":" + 0,
-        if (col.contains("completeness")) 14 + ":" + r.getString(8) else 14 + ":" + 0,
-        if (col.contains("latitude")) 15 + ":" + r.getString(6) else 15 + ":" + 0,
-        if (col.contains("longitude")) 16 + ":" + r.getString(7) else 16 + ":" + 0
+        if (r.getString(3).toDouble < (r.getString(10).toDouble * jamValue) && r.getString(3).toDouble != 0) 0 else 1,
+        if (col.contains("sensor_id")) {
+          i += 1
+          registerVectorAttribute(i, r.getString(0))
+        },
+        if (col.contains("timestamp")) {
+          i += 1
+          registerVectorAttribute(i, Timestamp.valueOf(r.getString(1)).getTime.toString)
+        },
+        if (col.contains("year")) {
+          i += 1
+          registerVectorAttribute(i, getYear(r.getString(1)).toString)
+        },
+        if (col.contains("month")) {
+          i += 1
+          registerVectorAttribute(i, getMonth(r.getString(1)).toString)
+        },
+        if (col.contains("day")) {
+          i += 1
+          registerVectorAttribute(i, getDay(r.getString(1)).toString)
+        },
+        if (col.contains("hour")) {
+          i += 1
+          registerVectorAttribute(i, getHour(r.getString(1)).toString)
+        },
+        if (col.contains("minute")) {
+          i += 1
+          registerVectorAttribute(i, getMinute(r.getString(1)).toString)
+        },
+        if (col.contains("weekday")) {
+          i += 1
+          registerVectorAttribute(i, getWeekday(r.getString(1)).toString)
+        },
+        if (col.contains("period")) {
+          i += 1
+          registerVectorAttribute(i, getPeriod(r.getString(1)).toString)
+        },
+        if (col.contains("registration")) {
+          i += 1
+          registerVectorAttribute(i, r.getString(2))
+        },
+        if (col.contains("velocity")) {
+          i += 1
+          registerVectorAttribute(i, r.getString(3))
+        },
+        if (col.contains("rainfall")) {
+          i += 1
+          registerVectorAttribute(i, r.getString(4))
+        },
+        if (col.contains("temperature")) {
+          i += 1
+          registerVectorAttribute(i, r.getString(5))
+        },
+        if (col.contains("completeness")) {
+          i += 1
+          registerVectorAttribute(i, r.getString(8))
+        },
+        if (col.contains("latitude")) {
+          i += 1
+          registerVectorAttribute(i, r.getString(6))
+        },
+        if (col.contains("longitude")) {
+          i += 1
+          registerVectorAttribute(i, r.getString(7))
+        },
+        i = 0
       ))
-      // String-Formatierung zur Überführung in LIBSVM-Format
+      // Stringmanipulations zur Transformation ins LIBSVM-Format
       .map(r => r.toString().replace("(", "").replace(")", ""). replace(",", " "))
+
+    // Datei rausschreiben mit aktuellem Datum und Uhrzeit als Dateiname
     val dt = LocalDateTime.now
     rdd.saveAsTextFile(targetPath + (dt.getYear - 2000) + "-" + dt.getMonthValue + "-" + dt.getDayOfMonth + "T" +
-                          dt.getHour + "." + dt.getMinute + "." + dt.getSecond + ".libsvm")
+                          dt.getHour + dt.getMinute + ".libsvm")
     log.debug("Datei erfolgreich herausgeschrieben. ")
   }
 
@@ -87,6 +149,21 @@ object LIBSVMTransformator {
       .withColumnRenamed("C6", "latitude")
       .withColumnRenamed("C7", "longitude")
       .withColumnRenamed("C8", "completeness")
+  }
+
+  private def createMaxVelocityDataFrame(sQLContext: SQLContext, url: String) = {
+    sQLContext
+      .read
+      .format(this.csvFormat)
+      .option("header", "false")
+      .option("inferSchema", "false")
+      .load(url)
+      .withColumnRenamed("C0", "sensor_id_mv")
+      .withColumnRenamed("C1", "max_velocity")
+  }
+
+  private def registerVectorAttribute(i: Int, v: String): String = {
+    i + ":" + v
   }
 
   private def getPeriod(timestamp: String): Int = {

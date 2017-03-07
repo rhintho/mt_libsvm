@@ -17,16 +17,17 @@ object ArgumentInspector {
                              "\nAllowed columns are sensor_id, timestamp, registration, velocity, rainfall, " +
                              "temperature, latitude, longitude and completeness "
 
-  def inspectArguments(dataPath: String, targetPath: String, jamValue: Int,
+  def inspectArguments(dataPath: String, maxVeloPath: String, targetPath: String, jamValue: Double,
                        column: Array[String]): Boolean = {
     inspectURL(dataPath) &&
+    inspectURL(maxVeloPath) &&
 //    inspectURL(targetPath) &&
     inspectJamValue(jamValue) &&
     inspectColumns(column)
   }
 
-  private def inspectJamValue(jamValue: Int): Boolean = {
-    jamValue > 1
+  private def inspectJamValue(jamValue: Double): Boolean = {
+    jamValue > 0.0 && jamValue <= 1.0
   }
 
   private def inspectJamValues(jamValue: Array[String]): Boolean = {
@@ -54,6 +55,7 @@ object ArgumentInspector {
       case "sensor_id" => true
       case "timestamp" => true
       case "registration" => true
+      case "velocity" => true
       case "rainfall" => true
       case "temperature" => true
       case "latitude" => true
