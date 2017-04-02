@@ -3,9 +3,15 @@ package de.beuth
 import de.beuth.inspector.ArgumentInspector
 
 /**
-  * Created by Sebastian Urbanek on 05.02.17.
+  * Haupteinstiegspunkt des Programms
   */
 object Main extends App {
+  var label = "X"
+
+  /**
+    * Erste Funktion, die nach dem Start des Programms aufgerufen wird.
+    * @param args Argumente, die beim Programmaufruf übergeben werden
+    */
   override def main(args: Array[String]): Unit = {
     try {
       // Parameter auslesen
@@ -16,11 +22,15 @@ object Main extends App {
       val column = readArgument(args.apply(4))
       var startTimeInterval = "2009-01-01T00:00:00"
       var endTimeInterval = "2014-12-31T23:59:59"
+
+      // Variabler Zeitraum wird nur eingefügt, wenn angegeben bei der Parameterliste
       if (args.length >= 7) {
         startTimeInterval = args.apply(5)
         endTimeInterval = args.apply(6)
       }
+      this.label = args.apply(7)
 
+      // Überprüfung der Argumente
       if (ArgumentInspector.inspectArguments(dataPath, maxVeloPath, targetPath, jamValue, column, startTimeInterval,
                                              endTimeInterval)) {
         // Argumente sind alle gültig, Transformation kann gestartet werden
@@ -40,6 +50,12 @@ object Main extends App {
     }
   }
 
+  /**
+    * Trennt eine Zeichenkette mit allen Vektorattributen und überführt sie
+    * in ein Array vom Typ String.
+    * @param a Zeichenkette mit allen Vektorattributen
+    * @return Array mit allen Vektorattributen
+    */
   private def readArgument(a: String): Array[String] = {
     a.split(";")
   }
